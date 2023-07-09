@@ -26,8 +26,6 @@ project ("Vulkan_Experiment_01")
 # find_package
 find_package(unofficial-vulkan-memory-allocator REQUIRED)
 
-# link package
-
 # include source files
 file(GLOB SRCFILES src/*.cpp src/*.h src/*.c)
 add_executable (Vulkan_Experiment_01 ${SRCFILES})
