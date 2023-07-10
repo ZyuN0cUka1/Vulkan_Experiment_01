@@ -24,15 +24,20 @@ list(PREPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 project ("Vulkan_Experiment_01")
 
 # find_package
-find_package(unofficial-vulkan-memory-allocator REQUIRED)
+find_package(Vulkan REQUIRED)
+find_package(unofficial-vulkan-memory-allocator CONFIG REQUIRED)
 
 # include source files
 file(GLOB SRCFILES src/*.cpp src/*.h src/*.c)
 add_executable (Vulkan_Experiment_01 ${SRCFILES})
+
+# link libraries
 target_link_libraries(
 	Vulkan_Experiment_01
 	PUBLIC
 		unofficial::vulkan-memory-allocator::vulkan-memory-allocator
+	PRIVATE
+		Vulkan::Vulkan
 )
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)

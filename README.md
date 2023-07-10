@@ -1,7 +1,10 @@
 # Vulkan_Experiment_01
 Nothing but a TRY
 # Requirement
-CMake: 3.16~
+```
+CMake:		3.16~
+Vulkan SDK:	1.3.250
+```
 # Installation
 ## Windows (CMake gui)
 - create a folder 'build' inside root directory
