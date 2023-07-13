@@ -145,7 +145,7 @@ void TextFileWrite(const std::string& text, const char* _File);
 // Uses the __cpuid intrinsic to get information about
 // CPU extended instruction set support.
 
-#include <iostream>
+// #include <iostream>
 #include <bitset>
 #include <array>
 #include <intrin.h>

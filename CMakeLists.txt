@@ -26,18 +26,28 @@ project ("Vulkan_Experiment_01")
 # find_package
 find_package(Vulkan REQUIRED)
 find_package(unofficial-vulkan-memory-allocator CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
 
 # include source files
 file(GLOB SRCFILES src/*.cpp src/*.h src/*.c)
 add_executable (Vulkan_Experiment_01 ${SRCFILES})
 
+# Check if code is debug
+set(IS_DEBUG_BUILD CMAKE_BUILD_TYPE STREQUAL "Debug")
+# Indication to the code that this is a debug build
+if (${IS_DEBUG_BUILD})
+    add_compile_definitions(__DEBUG__)
+endif ()
+
 # link libraries
 target_link_libraries(
 	Vulkan_Experiment_01
-	PUBLIC
-		unofficial::vulkan-memory-allocator::vulkan-memory-allocator
 	PRIVATE
+		unofficial::vulkan-memory-allocator::vulkan-memory-allocator
 		Vulkan::Vulkan
+		glm::glm
+		glfw
 )
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)

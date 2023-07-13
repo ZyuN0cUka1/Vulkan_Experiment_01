@@ -1,7 +1,9 @@
 #include "precomp.h"
 #include "Vulkan_Experiment_01.h"
 
+#ifndef __DEBUG__
 #pragma comment( linker, "/subsystem:windows /ENTRY:mainCRTStartup" )
+#endif
 
 #ifdef WIN32
 extern "C"
@@ -15,9 +17,20 @@ extern "C"
 }
 #endif
 
-void main()
-{
-	std::cout << "Hello CMake." << std::endl;
+int main() {
+	HelloTriangleApplication app;
+
+	try
+	{
+		app.run();
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << e.what() << std::endl;
+		return EXIT_FAILURE;
+	}
+
+	return EXIT_SUCCESS;
 }
 
 #pragma region Jobmanager
@@ -164,6 +177,22 @@ JobManager* JobManager::GetJobManager()
 #pragma endregion
 
 #pragma region help function
+namespace std{
+void FatalError(const char* fmt, ...)
+{
+	//	char t[16384];
+	//	va_list args;
+	//	va_start(args, fmt);
+	//	vsnprintf(t, sizeof(t), fmt, args);
+	//	va_end(args);
+	//#ifdef _MSC_VER
+	//	MessageBox(NULL, t, "Fatal error", MB_OK);
+	//#else
+	//	fprintf(stderr, t);
+	//#endif
+	//	while (1) exit(0);
+}
+
 bool FileIsNewer(const char* file1, const char* file2)
 {
 	struct stat f1;
@@ -224,5 +253,5 @@ void TextFileWrite(const string& text, const char* _File)
 	s.write((const char*)&len, sizeof(len));
 	s.write(text.c_str(), len);
 }
-
+}
 #pragma endregion
