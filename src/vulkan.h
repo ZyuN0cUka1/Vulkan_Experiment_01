@@ -9,6 +9,9 @@
 #include <cstdlib>
 #include <limits>
 #include <vector>
+#include <map>
+#include <optional>
+#include <set>
 
 // Vulkan define and include
 #define VMA_STATIC_VULKAN_FUNCTIONS 0
@@ -36,72 +39,15 @@ const bool enableValidationLayers = true;
 const bool enableValidationLayers = false;
 #endif
 
-// Debug Utils Messenger functions
-#pragma region DebugUtilsMessengerEXT
-// call back function
-inline VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-	VkDebugUtilsMessageTypeFlagsEXT messageType,
-	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-	void* pUserData) {
-#ifdef __DEBUG__
-	std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
-#else
-	/*
-	* VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:	Diagnostic message
-	* VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:		Informational message like the creation of a resource
-	* VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:	Message about behavior that is not necessarily an error, but very likely a bug in your application
-	* VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:	Message about behavior that is invalid and may cause crashes
-	*/
-	if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-		// Message is important enough to show
-		std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+// queue struct
+struct QueueFamilyIndices {
+	std::optional<uint32_t> graphicsFamily;
+	std::optional<uint32_t> presentFamily;
+
+	bool isComplete() {
+		return graphicsFamily.has_value() && presentFamily.has_value();
 	}
-#endif // __DEBUG__
-
-	return VK_FALSE;
-}
-
-inline VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
-	const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, 
-	const VkAllocationCallbacks* pAllocator, 
-	VkDebugUtilsMessengerEXT* pDebugMessenger) {
-	
-	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-	if (func != nullptr) {
-		return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
-	}
-	else {
-		return VK_ERROR_EXTENSION_NOT_PRESENT;
-	}
-}
-
-inline void DestroyDebugUtilsMessengerEXT(VkInstance instance,
-	VkDebugUtilsMessengerEXT debugMessenger, 
-	const VkAllocationCallbacks* pAllocator) {
-	
-	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-	if (func != nullptr) {
-		func(instance, debugMessenger, pAllocator);
-	}
-}
-
-inline void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
-	createInfo = {};
-	createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-
-	createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-		VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-		VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-
-	createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-		VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-		VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-
-	createInfo.pfnUserCallback = debugCallback;
-	createInfo.pUserData = nullptr; // Optional
-}
-#pragma endregion
+};
 
 // Vulkan app class
 class HelloTriangleApplication {
@@ -110,53 +56,50 @@ public:
 private:
 	GLFWwindow* window;
 	VkInstance instance;
+	VkSurfaceKHR surface;
 
 	VkDebugUtilsMessengerEXT debugMessenger;
+	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+	VkDevice device;
+	VkQueue graphicsQueue;
+	VkQueue presentQueue;
 
 	void initWindow();
-	void creatInstance();
+	void createInstance();
+	void createSurface();
 
 	void initVulkan();
 	void setupDebugMessenger();
+	void pickPhysicalDevice();
+	void createLogicalDevice();
 
 	void mainLoop();
 	void cleanup();
+
+private:
+	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
+		const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+		const VkAllocationCallbacks* pAllocator,
+		VkDebugUtilsMessengerEXT* pDebugMessenger);
+	void DestroyDebugUtilsMessengerEXT(VkInstance instance,
+		VkDebugUtilsMessengerEXT debugMessenger,
+		const VkAllocationCallbacks* pAllocator);
+	void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
+
+	bool checkValidationLayerSupport();
+	std::vector<const char*> getRequiredExtensions();
+
+	bool isDeviceSuitable(VkPhysicalDevice device);
+	int rateDeviceSuitability(VkPhysicalDevice device);
+
+	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
 };
 
-// validation layer
-static bool checkValidationLayerSupport() {
-	uint32_t layerCount;
-	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-	std::vector<VkLayerProperties> availableLayers(layerCount);
-	vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-
-	for (const char* layerName : validationLayers) {
-		bool layerFound = false;
-
-		for (const auto& layerProperties : availableLayers)
-			if (strcmp(layerName, layerProperties.layerName) == 0) {
-				layerFound = true;
-				break;
-			}
-
-		if (!layerFound)
-			return false;
-	}
-
-	return true;
-}
-// using glfw to get information about global extensions with error throw out
-
-static std::vector<const char*> getRequiredExtensions() {
-	uint32_t glfwExtensionCount = 0;
-	const char** glfwExtensions;
-	glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-	std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
-
-	if (enableValidationLayers)
-		extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-
-	return extensions;
-}
+// Utils
+#pragma region Utils
+VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+	VkDebugUtilsMessageTypeFlagsEXT messageType,
+	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+	void* pUserData);
+#pragma endregion
