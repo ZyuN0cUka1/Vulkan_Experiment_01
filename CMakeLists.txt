@@ -31,7 +31,23 @@ find_package(glfw3 CONFIG REQUIRED)
 
 # include source files
 file(GLOB SRCFILES src/*.cpp src/*.h src/*.c)
+file(GLOB SHADER_FILES src/shaders/*.vert src/shaders/*.frag)
 add_executable (Vulkan_Experiment_01 ${SRCFILES})
+
+#==============================================================================
+# COMPILE SHADERS
+#
+find_program(GLSLC glslc)
+set(shader_path ${CMAKE_HOME_DIRECTORY}/assets/shaders/)
+file(GLOB shaders RELATIVE ${CMAKE_SOURCE_DIR} "${shader_path}*.vert" "${shader_path}*.frag")
+foreach(shader ${shaders})
+	set(input_glsl "${CMAKE_HOME_DIRECTORY}/${shader}")
+	set(output_spv "${input_glsl}.spv")
+	execute_process(COMMAND "glslc" "${input_glsl}" "-o" "${output_spv}")
+endforeach()
+#
+# COMPILE SHADERS END
+#==============================================================================
 
 # Check if code is debug
 set(IS_DEBUG_BUILD CMAKE_BUILD_TYPE STREQUAL "Debug")
