@@ -18,7 +18,7 @@ extern "C"
 #endif
 
 int main() {
-	HelloTriangleApplication app;
+	MyVulkanApplication app;
 
 	try
 	{

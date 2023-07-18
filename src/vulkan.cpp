@@ -1,7 +1,7 @@
 // header for Vulkan
 #include "vulkan.h"
 
-void HelloTriangleApplication::run() {
+void MyVulkanApplication::run() {
 	initWindow();
 	initVulkan();
 	mainLoop();
@@ -9,7 +9,7 @@ void HelloTriangleApplication::run() {
 }
 
 //------------------------------------init window
-void HelloTriangleApplication::initWindow() {
+void MyVulkanApplication::initWindow() {
 	glfwInit();																					// glfw init
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);												// no ogl context
@@ -20,7 +20,7 @@ void HelloTriangleApplication::initWindow() {
 	glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 }
 
-void HelloTriangleApplication::createInstance() {
+void MyVulkanApplication::createInstance() {
 	if (enableValidationLayers && !checkValidationLayerSupport())
 		throw std::runtime_error("validation layers requested, but not available!");
 
@@ -78,13 +78,13 @@ void HelloTriangleApplication::createInstance() {
 		throw std::runtime_error("failed to create instance!");
 }
 
-void HelloTriangleApplication::createSurface() {
+void MyVulkanApplication::createSurface() {
 	if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
 		throw std::runtime_error("failed to create window surface!");
 }
 
 //------------------------------------init vulkan
-void HelloTriangleApplication::initVulkan() {
+void MyVulkanApplication::initVulkan() {
 	createInstance();
 	setupDebugMessenger();
 	createSurface();
@@ -96,12 +96,14 @@ void HelloTriangleApplication::initVulkan() {
 	createGraphicsPipeline();
 	createFramebuffers();
 	createCommandPool();
+	createVertexBuffer();
+	createIndexBuffer();
 	createCommandBuffers();
 	createSyncObjects();
 }
 
 #pragma region vulkan init function
-void HelloTriangleApplication::setupDebugMessenger() {
+void MyVulkanApplication::setupDebugMessenger() {
 	if (!enableValidationLayers)return;
 
 	VkDebugUtilsMessengerCreateInfoEXT createInfo{};
@@ -112,7 +114,7 @@ void HelloTriangleApplication::setupDebugMessenger() {
 
 }
 
-void HelloTriangleApplication::pickPhysicalDevice() {
+void MyVulkanApplication::pickPhysicalDevice() {
 	uint32_t deviceCount = 0;
 	vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 	if (deviceCount == 0)
@@ -146,7 +148,7 @@ void HelloTriangleApplication::pickPhysicalDevice() {
 #endif
 }
 
-void HelloTriangleApplication::createLogicalDevice() {
+void MyVulkanApplication::createLogicalDevice() {
 	QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -190,7 +192,7 @@ void HelloTriangleApplication::createLogicalDevice() {
 	vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
 }
 
-void HelloTriangleApplication::createSwapChain() {
+void MyVulkanApplication::createSwapChain() {
 	SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
 
 	VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
@@ -248,7 +250,7 @@ void HelloTriangleApplication::createSwapChain() {
 	swapChainExtent = extent;
 }
 
-void HelloTriangleApplication::createImageViews() {
+void MyVulkanApplication::createImageViews() {
 	swapChainImageViews.resize(swapChainImages.size());
 	
 	for (size_t i = 0; i < swapChainImages.size(); i++) {
@@ -275,7 +277,7 @@ void HelloTriangleApplication::createImageViews() {
 	}
 }
 
-void HelloTriangleApplication::createRenderPass() {
+void MyVulkanApplication::createRenderPass() {
 	VkAttachmentDescription colorAttachment{};
 	colorAttachment.format = swapChainImageFormat;
 	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -323,7 +325,7 @@ void HelloTriangleApplication::createRenderPass() {
 		throw std::runtime_error("failed to create render pass!");
 }
 
-void HelloTriangleApplication::createGraphicsPipeline() {
+void MyVulkanApplication::createGraphicsPipeline() {
 	auto vertShaderCode = readFile("assets/shaders/shader.vert.spv");
 	auto fragShaderCode = readFile("assets/shaders/shader.frag.spv");
 
@@ -361,10 +363,14 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 	// vertex input
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 0;
-	vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
-	vertexInputInfo.vertexAttributeDescriptionCount = 0;
-	vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
+
+	auto bindingDescription = Vertex::getBindingDescription();
+	auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
+	vertexInputInfo.vertexBindingDescriptionCount = 1;
+	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
 	// input assembly
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
@@ -508,7 +514,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 	vkDestroyShaderModule(device, vertShaderModule, nullptr);
 }
 
-void HelloTriangleApplication::createFramebuffers() {
+void MyVulkanApplication::createFramebuffers() {
 	swapChainFramebuffers.resize(swapChainImageViews.size());
 
 	for (size_t i = 0; i < swapChainImageViews.size(); i++) {
@@ -530,7 +536,47 @@ void HelloTriangleApplication::createFramebuffers() {
 	}
 }
 
-void HelloTriangleApplication::createCommandPool() {
+void MyVulkanApplication::createVertexBuffer() {
+	VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+	void* data;
+	vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, vertices.data(), (size_t)bufferSize);
+	vkUnmapMemory(device, stagingBufferMemory);
+
+	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
+
+	copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+
+	vkDestroyBuffer(device, stagingBuffer, nullptr);
+	vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+void MyVulkanApplication::createIndexBuffer() {
+	VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+	void* data;
+	vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, indices.data(), (size_t)bufferSize);
+	vkUnmapMemory(device, stagingBufferMemory);
+
+	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
+
+	copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+
+	vkDestroyBuffer(device, stagingBuffer, nullptr);
+	vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+void MyVulkanApplication::createCommandPool() {
 	QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
 
 	VkCommandPoolCreateInfo poolInfo{};
@@ -542,7 +588,7 @@ void HelloTriangleApplication::createCommandPool() {
 		throw std::runtime_error("failed to create command pool!");
 }
 
-void HelloTriangleApplication::createCommandBuffers() {
+void MyVulkanApplication::createCommandBuffers() {
 	commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 
 	VkCommandBufferAllocateInfo allocInfo{};
@@ -556,7 +602,7 @@ void HelloTriangleApplication::createCommandBuffers() {
 
 }
 
-void HelloTriangleApplication::createSyncObjects() {
+void MyVulkanApplication::createSyncObjects() {
 	imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 	renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 	inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
@@ -578,7 +624,7 @@ void HelloTriangleApplication::createSyncObjects() {
 #pragma endregion
 
 //------------------------------------main loop
-void HelloTriangleApplication::mainLoop() {
+void MyVulkanApplication::mainLoop() {
 	while (!glfwWindowShouldClose(window)) {													// check if window is closed
 		glfwPollEvents();
 		drawFrame();
@@ -610,7 +656,7 @@ void HelloTriangleApplication::mainLoop() {
 *	save_screenshot_to_disk() // can't run until the transfer has finished
 */
 
-void HelloTriangleApplication::drawFrame() {
+void MyVulkanApplication::drawFrame() {
 	vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
 	uint32_t imageIndex;
@@ -672,7 +718,7 @@ void HelloTriangleApplication::drawFrame() {
 	currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void HelloTriangleApplication::cleanupSwapChain() {
+void MyVulkanApplication::cleanupSwapChain() {
 	for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
 		vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
 	}
@@ -684,7 +730,7 @@ void HelloTriangleApplication::cleanupSwapChain() {
 	vkDestroySwapchainKHR(device, swapChain, nullptr);
 }
 
-void HelloTriangleApplication::recreateSwapChain() {
+void MyVulkanApplication::recreateSwapChain() {
 	int width = 0, height = 0;
 	glfwGetFramebufferSize(window, &width, &height);
 	while (width == 0 || height == 0) {
@@ -706,8 +752,14 @@ void HelloTriangleApplication::recreateSwapChain() {
 }
 
 //------------------------------------clean up
-void HelloTriangleApplication::cleanup() {
+void MyVulkanApplication::cleanup() {
 	cleanupSwapChain();
+
+	vkDestroyBuffer(device, indexBuffer, nullptr);
+	vkFreeMemory(device, indexBufferMemory, nullptr);
+
+	vkDestroyBuffer(device, vertexBuffer, nullptr);
+	vkFreeMemory(device, vertexBufferMemory, nullptr);
 
 	vkDestroyPipeline(device, graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
@@ -734,7 +786,8 @@ void HelloTriangleApplication::cleanup() {
 	glfwTerminate();																		// glfw close
 }
 
-void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+//------------------------------------command part
+void MyVulkanApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	beginInfo.flags = 0; // Optional
@@ -773,7 +826,14 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
 	scissor.extent = swapChainExtent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+	VkBuffer vertexBuffers[] = { vertexBuffer };
+	VkDeviceSize offsets[] = { 0 };
+
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+	vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
 	vkCmdEndRenderPass(commandBuffer);
 
@@ -781,8 +841,67 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
 		throw std::runtime_error("failed to record command buffer!");
 }
 
+void MyVulkanApplication::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
+	VkBufferCreateInfo bufferInfo{};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.size = size;
+	bufferInfo.usage = usage;
+	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	if (vkCreateBuffer(device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create buffer!");
+	}
+
+	VkMemoryRequirements memRequirements;
+	vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
+
+	VkMemoryAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memRequirements.size;
+	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+
+	if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
+		throw std::runtime_error("failed to allocate buffer memory!");
+	}
+
+	vkBindBufferMemory(device, buffer, bufferMemory, 0);
+}
+
+void MyVulkanApplication::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandPool = commandPool;
+	allocInfo.commandBufferCount = 1;
+
+	VkCommandBuffer commandBuffer;
+	vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+	VkBufferCopy copyRegion{};
+	copyRegion.size = size;
+	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+	vkEndCommandBuffer(commandBuffer);
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffer;
+
+	vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(graphicsQueue);
+
+	vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+}
+
 #pragma region private utils for initializing part
-VkResult HelloTriangleApplication::CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
+VkResult MyVulkanApplication::CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
 	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
 
 	if (func != nullptr)
@@ -791,14 +910,14 @@ VkResult HelloTriangleApplication::CreateDebugUtilsMessengerEXT(VkInstance insta
 		return VK_ERROR_EXTENSION_NOT_PRESENT;
 }
 
-void HelloTriangleApplication::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
+void MyVulkanApplication::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
 	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
 	if (func != nullptr) {
 		func(instance, debugMessenger, pAllocator);
 	}
 }
 
-void HelloTriangleApplication::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
+void MyVulkanApplication::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
 	createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 
@@ -814,7 +933,7 @@ void HelloTriangleApplication::populateDebugMessengerCreateInfo(VkDebugUtilsMess
 	createInfo.pUserData = nullptr; // Optional
 }
 
-bool HelloTriangleApplication::checkValidationLayerSupport() {
+bool MyVulkanApplication::checkValidationLayerSupport() {
 	uint32_t layerCount;
 	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
@@ -837,7 +956,7 @@ bool HelloTriangleApplication::checkValidationLayerSupport() {
 	return true;
 }
 
-bool HelloTriangleApplication::checkDeviceExtensionSupport(VkPhysicalDevice device) {
+bool MyVulkanApplication::checkDeviceExtensionSupport(VkPhysicalDevice device) {
 	uint32_t extensionCount;
 	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
 
@@ -852,7 +971,7 @@ bool HelloTriangleApplication::checkDeviceExtensionSupport(VkPhysicalDevice devi
 	return requiredExtensions.empty();
 }
 
-std::vector<const char*> HelloTriangleApplication::getRequiredExtensions() {
+std::vector<const char*> MyVulkanApplication::getRequiredExtensions() {
 	uint32_t glfwExtensionCount = 0;
 	const char** glfwExtensions;
 	glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -865,7 +984,7 @@ std::vector<const char*> HelloTriangleApplication::getRequiredExtensions() {
 	return extensions;
 }
 
-bool HelloTriangleApplication::isDeviceSuitable(VkPhysicalDevice device) {
+bool MyVulkanApplication::isDeviceSuitable(VkPhysicalDevice device) {
 	QueueFamilyIndices indices = findQueueFamilies(device);
 	
 	bool extensionsSupported = checkDeviceExtensionSupport(device);
@@ -879,7 +998,7 @@ bool HelloTriangleApplication::isDeviceSuitable(VkPhysicalDevice device) {
 	return indices.isComplete() && extensionsSupported && swapChainAdequate;
 }
 
-int HelloTriangleApplication::rateDeviceSuitability(VkPhysicalDevice device) {
+int MyVulkanApplication::rateDeviceSuitability(VkPhysicalDevice device) {
 	VkPhysicalDeviceProperties deviceProperties;
 	VkPhysicalDeviceFeatures deviceFeatures;
 	vkGetPhysicalDeviceProperties(device, &deviceProperties);
@@ -901,7 +1020,7 @@ int HelloTriangleApplication::rateDeviceSuitability(VkPhysicalDevice device) {
 	return score;
 }
 
-QueueFamilyIndices HelloTriangleApplication::findQueueFamilies(VkPhysicalDevice device) {
+QueueFamilyIndices MyVulkanApplication::findQueueFamilies(VkPhysicalDevice device) {
 	QueueFamilyIndices indices;
 
 	uint32_t queueFamilyCount = 0;
@@ -926,7 +1045,7 @@ QueueFamilyIndices HelloTriangleApplication::findQueueFamilies(VkPhysicalDevice 
 	return indices;
 }
 
-SwapChainSupportDetails HelloTriangleApplication::querySwapChainSupport(VkPhysicalDevice device) {
+SwapChainSupportDetails MyVulkanApplication::querySwapChainSupport(VkPhysicalDevice device) {
 	SwapChainSupportDetails details;
 
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
@@ -950,7 +1069,7 @@ SwapChainSupportDetails HelloTriangleApplication::querySwapChainSupport(VkPhysic
 	return details;
 }
 
-VkSurfaceFormatKHR HelloTriangleApplication::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
+VkSurfaceFormatKHR MyVulkanApplication::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
 	for (const auto& availableFormat : availableFormats) {
 		if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
 			return availableFormat;
@@ -960,7 +1079,7 @@ VkSurfaceFormatKHR HelloTriangleApplication::chooseSwapSurfaceFormat(const std::
 	return availableFormats[0];
 }
 
-VkPresentModeKHR HelloTriangleApplication::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
+VkPresentModeKHR MyVulkanApplication::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
 	for (const auto& availablePresentMode : availablePresentModes) {
 		if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
 			return availablePresentMode;
@@ -970,7 +1089,7 @@ VkPresentModeKHR HelloTriangleApplication::chooseSwapPresentMode(const std::vect
 	return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D HelloTriangleApplication::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
+VkExtent2D MyVulkanApplication::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
 	if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
 		return capabilities.currentExtent;
 	}
@@ -990,7 +1109,7 @@ VkExtent2D HelloTriangleApplication::chooseSwapExtent(const VkSurfaceCapabilitie
 	}
 }
 
-VkShaderModule HelloTriangleApplication::createShaderModule(const std::vector<char>& code)
+VkShaderModule MyVulkanApplication::createShaderModule(const std::vector<char>& code)
 {
 	VkShaderModuleCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -1002,6 +1121,17 @@ VkShaderModule HelloTriangleApplication::createShaderModule(const std::vector<ch
 		throw std::runtime_error("failed to create shader module!");
 
 	return shaderModule;
+}
+
+uint32_t MyVulkanApplication::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+	VkPhysicalDeviceMemoryProperties memProperties;
+	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+
+	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+		if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+			return i;
+
+	throw std::runtime_error("failed to find suitable memory type!"); 
 }
 #pragma endregion
 
