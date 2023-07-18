@@ -6,6 +6,7 @@
 #include <cstring>
 #include <cstdint>
 #include <algorithm>
+#include <chrono>
 
 // C standard should be replaced with more efficient codes
 #include <stdexcept>
@@ -26,8 +27,11 @@
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 // constant value
 const uint32_t WIDTH = 800;
@@ -97,6 +101,13 @@ struct Vertex {
 	}
 };
 
+// descriptor struct UBO
+struct UniformBufferObject {
+	glm::mat4 model;
+	glm::mat4 view;
+	glm::mat4 proj;
+};
+
 // the triangle
 const std::vector<Vertex> vertices = {
 	{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
@@ -132,6 +143,8 @@ private:
 	VkExtent2D swapChainExtent;
 	
 	VkRenderPass renderPass;
+
+	VkDescriptorSetLayout descriptorSetLayout;
 	VkPipelineLayout pipelineLayout;
 	VkPipeline graphicsPipeline;
 
@@ -151,6 +164,12 @@ private:
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
 
+	std::vector<VkBuffer> uniformBuffers;
+	std::vector<VkDeviceMemory> uniformBuffersMemory;
+	std::vector<void*> uniformBuffersMapped;
+	VkDescriptorPool descriptorPool;
+	std::vector<VkDescriptorSet> descriptorSets;
+
 	void initWindow();
 	void createInstance();
 	void createSurface();
@@ -159,13 +178,20 @@ private:
 	void setupDebugMessenger();
 	void pickPhysicalDevice();
 	void createLogicalDevice();
+
 	void createSwapChain();
 	void createImageViews();
 	void createRenderPass();
+	void createDescriptorSetLayout();
 	void createGraphicsPipeline();
+
 	void createFramebuffers();
 	void createVertexBuffer();
 	void createIndexBuffer();
+	void createUniformBuffers();
+	void createDescriptorPool();
+	void createDescriptorSets();
+
 	void createCommandPool();
 	void createCommandBuffers();
 	void createSyncObjects();
@@ -179,6 +205,8 @@ private:
 
 private:
 	// command
+	void updateUniformBuffer(uint32_t currentImage);
+
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);

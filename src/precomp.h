@@ -1,13 +1,11 @@
 #pragma once
 
 // C++ headers
-#include <chrono>
 #include <fstream>
 #include <list>
 #include <string>
 #include <thread>
 #include <math.h>
-#include <algorithm>
 #include <assert.h>
 #include <io.h>
 
@@ -64,7 +62,7 @@ typedef unsigned short ushort;
 #define NOIME
 #include "windows.h"
 
-// include vulkan
+// include vulkan application
 #include "vulkan.h"
 
 // fatal error reporting (with a pretty window)
@@ -147,7 +145,6 @@ void TextFileWrite(const std::string& text, const char* _File);
 
 // #include <iostream>
 #include <bitset>
-#include <array>
 #include <intrin.h>
 
 // instruction set detection
