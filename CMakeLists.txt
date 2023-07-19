@@ -68,10 +68,15 @@ file(DOWNLOAD
 https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
 ${CMAKE_SOURCE_DIR}/external/stb_image.h)
 
+file(DOWNLOAD
+https://raw.githubusercontent.com/tinyobjloader/tinyobjloader/release/tiny_obj_loader.h
+${CMAKE_SOURCE_DIR}/external/tiny_obj_loader.h)
+
 # include source files
 file(GLOB_RECURSE SRCFILES CONFIGURE_DEPENDS src/*.cpp src/*.h src/*.c)
 file(GLOB_RECURSE SHADER_FILES CONFIGURE_DEPENDS assets/shaders/*.spv)
-file(GLOB_RECURSE TEXTURE_FILES CONFIGURE_DEPENDS assets/shaders/)
+file(GLOB_RECURSE TEXTURE_FILES CONFIGURE_DEPENDS assets/textures/)
+file(GLOB_RECURSE MODEL_FILES CONFIGURE_DEPENDS assets/models/)
 file(GLOB_RECURSE EXT_FILES CONFIGURE_DEPENDS external/*.h)
 
 add_executable (${PROJECT_NAME} ${SRCFILES} ${SHADER_FILES} ${TEXTURE_FILES} ${EXT_FILES})
