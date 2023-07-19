@@ -63,10 +63,19 @@ find_package(unofficial-vulkan-memory-allocator CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 
+# include download files
+file(DOWNLOAD
+https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
+${CMAKE_SOURCE_DIR}/external/stb_image.h)
+
 # include source files
 file(GLOB_RECURSE SRCFILES CONFIGURE_DEPENDS src/*.cpp src/*.h src/*.c)
 file(GLOB_RECURSE SHADER_FILES CONFIGURE_DEPENDS assets/shaders/*.spv)
-add_executable (${PROJECT_NAME} ${SRCFILES} ${SHADER_FILES})
+file(GLOB_RECURSE TEXTURE_FILES CONFIGURE_DEPENDS assets/shaders/)
+file(GLOB_RECURSE EXT_FILES CONFIGURE_DEPENDS external/*.h)
+
+add_executable (${PROJECT_NAME} ${SRCFILES} ${SHADER_FILES} ${TEXTURE_FILES} ${EXT_FILES})
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external)
 
 add_custom_command(
   TARGET ${PROJECT_NAME} POST_BUILD

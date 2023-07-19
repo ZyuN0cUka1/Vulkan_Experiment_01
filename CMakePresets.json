@@ -26,7 +26,8 @@
 			"displayName": "x64 Debug",
 			"inherits": "windows-base",
 			"cacheVariables": {
-				"CMAKE_BUILD_TYPE": "Debug"
+				"CMAKE_BUILD_TYPE": "Debug",
+				"CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>"
 			}
 		},
 		{
@@ -34,7 +35,8 @@
 			"displayName": "x64 Release",
 			"inherits": "windows-base",
 			"cacheVariables": {
-				"CMAKE_BUILD_TYPE": "Release"
+				"CMAKE_BUILD_TYPE": "Release",
+				"CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded"
 			}
 		},
 		{
@@ -76,6 +78,20 @@
 					"sourceDir": "$env{HOME}/.vs/$ms{projectDirName}"
 				}
 			}
+		}
+	],
+	"buildPresets": [
+		{
+			"name": "windows-debug",
+			"displayName": "Debug",
+			"configurePreset": "x64-debug",
+			"configuration": "Debug"
+		},
+		{
+			"name": "windows-release",
+			"displayName": "Release",
+			"configurePreset": "x64-release",
+			"configuration": "Release"
 		}
 	]
 }
